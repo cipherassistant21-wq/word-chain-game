@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { BRANDS } from '../data/brands.js'
-import { isBrandValid, getLastLetter } from '../utils/gameLogic.js'
+import { isBrandValid, isBrandValidAsync, getLastLetter } from '../utils/gameLogic.js'
 
 /**
  * Custom hook for managing Word Chain game state
@@ -56,22 +56,23 @@ export function useGameState() {
   /**
    * Submit a word for the current player
    * @param {string} word - Word to submit
-   * @returns {object} - { success: boolean, error: string|null, suggestion: string|null }
+   * @returns {Promise<{ success: boolean, error: string|null, suggestion: string|null, source?: 'database'|'wikipedia' }>}
    */
-  const submitWord = useCallback((word) => {
-    // Validate the word
-    const validation = isBrandValid(word, BRANDS, lastWord)
+  const submitWord = useCallback(async (word) => {
+    // Validate the word (async - checks database first, then Wikipedia)
+    const validation = await isBrandValidAsync(word, BRANDS, lastWord)
 
     if (!validation.valid) {
-      return { 
-        success: false, 
-        error: validation.error, 
-        suggestion: validation.suggestion || null 
+      return {
+        success: false,
+        error: validation.error,
+        suggestion: validation.suggestion || null,
+        source: validation.source
       }
     }
 
-    // Add word to history
-    const newWord = { player: currentPlayer, word: validation.brand }
+    // Add word to history with source
+    const newWord = { player: currentPlayer, word: validation.brand, source: validation.source }
     setWords(prev => [...prev, newWord])
 
     // Update last word
@@ -87,7 +88,7 @@ export function useGameState() {
     // Switch player
     setCurrentPlayer(prev => prev === 1 ? 2 : 1)
 
-    return { success: true, error: null, suggestion: null }
+    return { success: true, error: null, suggestion: null, source: validation.source }
   }, [currentPlayer, lastWord])
 
   /**

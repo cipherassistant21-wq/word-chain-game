@@ -163,6 +163,8 @@ export function findBrand(word, brands) {
   return null;
 }
 
+import { validateBrandWithWikipedia } from './wikipediaApi.js';
+
 /**
  * Validates a brand word against all game rules
  * @param {string} word - The word to validate
@@ -232,11 +234,67 @@ export function isBrandValid(word, brands, lastWord = null) {
   };
 }
 
+/**
+ * Async version of isBrandValid that validates against Wikipedia if not found in database
+ * @param {string} word - The word to validate
+ * @param {Array<string|Object>} brands - Array of available brands
+ * @param {string} lastWord - The previous word (optional, for first turn)
+ * @returns {Promise<{ valid: boolean, error: string|null, brand: string|null, suggestion?: string|null, source?: 'database'|'wikipedia' }>}
+ */
+export async function isBrandValidAsync(word, brands, lastWord = null) {
+  // First check local database
+  const dbValidation = isBrandValid(word, brands, lastWord);
+
+  if (dbValidation.valid) {
+    return {
+      ...dbValidation,
+      source: 'database'
+    };
+  }
+
+  // If not found in database, try Wikipedia validation
+  if (dbValidation.error && dbValidation.error.includes('not a recognized brand')) {
+    const trimmedWord = word.trim();
+
+    const wikiResult = await validateBrandWithWikipedia(trimmedWord);
+
+    if (wikiResult.valid) {
+      // Check letter sequence rule
+      if (lastWord && lastWord.trim().length > 0) {
+        if (!startsWithCorrectLetter(trimmedWord, lastWord)) {
+          const requiredLetter = getLastLetter(lastWord);
+          return {
+            valid: false,
+            error: `Word must start with "${requiredLetter.toUpperCase()}"`,
+            brand: null,
+            source: 'wikipedia'
+          };
+        }
+      }
+
+      // Use the Wikipedia title as the brand name
+      return {
+        valid: true,
+        error: null,
+        brand: wikiResult.title,
+        source: 'wikipedia'
+      };
+    }
+  }
+
+  // Return original database validation result
+  return {
+    ...dbValidation,
+    source: 'database'
+  };
+}
+
 export default {
   getLastLetter,
   startsWithCorrectLetter,
   levenshteinDistance,
   findBrandFuzzy,
   findBrand,
-  isBrandValid
+  isBrandValid,
+  isBrandValidAsync
 };
