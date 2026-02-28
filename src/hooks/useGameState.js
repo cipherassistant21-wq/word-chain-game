@@ -47,7 +47,7 @@ export function useGameState() {
   /**
    * Validate a word without submitting it
    * @param {string} word - Word to validate
-   * @returns {object} - { valid: boolean, error: string|null }
+   * @returns {object} - { valid: boolean, error: string|null, suggestion: string|null }
    */
   const validateWord = useCallback((word) => {
     return isBrandValid(word, BRANDS, lastWord)
@@ -56,14 +56,18 @@ export function useGameState() {
   /**
    * Submit a word for the current player
    * @param {string} word - Word to submit
-   * @returns {object} - { success: boolean, error: string|null }
+   * @returns {object} - { success: boolean, error: string|null, suggestion: string|null }
    */
   const submitWord = useCallback((word) => {
     // Validate the word
     const validation = isBrandValid(word, BRANDS, lastWord)
 
     if (!validation.valid) {
-      return { success: false, error: validation.error }
+      return { 
+        success: false, 
+        error: validation.error, 
+        suggestion: validation.suggestion || null 
+      }
     }
 
     // Add word to history
@@ -83,45 +87,61 @@ export function useGameState() {
     // Switch player
     setCurrentPlayer(prev => prev === 1 ? 2 : 1)
 
-    return { success: true, error: null }
+    return { success: true, error: null, suggestion: null }
   }, [currentPlayer, lastWord])
 
   /**
-   * End the game and declare a winner
-   * @param {number} losingPlayer - The player who failed to provide a valid word
-   */
-  const endGame = useCallback((losingPlayer) => {
-    setIsGameOver(true)
-    // The winner is the other player
-    const winnerPlayer = losingPlayer === 1 ? 2 : 1
-    setWinner(winnerPlayer)
-  }, [])
-
-  /**
-   * Get the last letter of the last word (for UI hint)
-   * @returns {string}
+   * Get the required starting letter for the next word
+   * @returns {string} - The letter (lowercase) or empty string for first turn
    */
   const getNextLetter = useCallback(() => {
     if (!lastWord) return ''
     return getLastLetter(lastWord)
   }, [lastWord])
 
+  /**
+   * End the game (call when a player fails)
+   */
+  const endGame = useCallback(() => {
+    setIsGameOver(true)
+    // Current player failed, so the OTHER player wins
+    setWinner(currentPlayer === 1 ? 2 : 1)
+  }, [currentPlayer])
+
+  /**
+   * Skip turn (forfeit)
+   */
+  const skipTurn = useCallback(() => {
+    endGame()
+  }, [endGame])
+
+  /**
+   * Get current player name
+   */
+  const getCurrentPlayerName = useCallback(() => {
+    return playerNames[currentPlayer] || `Player ${currentPlayer}`
+  }, [currentPlayer, playerNames])
+
   return {
     // State
     currentPlayer,
+    playerNames,
     words,
     scores,
     lastWord,
     isGameOver,
     winner,
-    playerNames,
-
+    
     // Actions
     startGame,
     submitWord,
     validateWord,
-    endGame,
     getNextLetter,
-    setPlayerNames
+    endGame,
+    skipTurn,
+    setPlayerNames,
+    getCurrentPlayerName
   }
 }
+
+export default useGameState

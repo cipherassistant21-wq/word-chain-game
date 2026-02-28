@@ -14,11 +14,14 @@ function App() {
     winner,
     startGame,
     submitWord,
-    getNextLetter
+    getNextLetter,
+    setPlayerNames,
+    getCurrentPlayerName
   } = useGameState()
   
   const [inputWord, setInputWord] = useState('')
   const [error, setError] = useState(null)
+  const [suggestion, setSuggestion] = useState(null)
   const [showRules, setShowRules] = useState(false)
   const [isValid, setIsValid] = useState(false)
   const [isInvalid, setIsInvalid] = useState(false)
@@ -36,6 +39,7 @@ function App() {
     
     setIsSubmitting(true)
     setError(null)
+    setSuggestion(null)
     setIsValid(false)
     setIsInvalid(false)
     
@@ -48,16 +52,29 @@ function App() {
     } else {
       setIsInvalid(true)
       setError(result.error)
+      if (result.suggestion) {
+        setSuggestion(result.suggestion)
+      }
       setTimeout(() => setIsInvalid(false), 500)
     }
     
     setIsSubmitting(false)
   }
 
+  // Handle suggestion click
+  const handleSuggestionClick = () => {
+    if (suggestion) {
+      setInputWord(suggestion)
+      setSuggestion(null)
+      setError(null)
+    }
+  }
+
   const handlePlayAgain = () => {
     startGame()
     setInputWord('')
     setError(null)
+    setSuggestion(null)
     setIsValid(false)
     setIsInvalid(false)
   }
@@ -97,145 +114,143 @@ function App() {
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
                 Game Over!
               </h2>
-              <ScoreBoard 
+              <ScoreBoard
+                key={fadeKey}
                 scores={scores}
                 currentPlayer={currentPlayer}
-                isGameOver={isGameOver}
+                playerNames={{}}
                 winner={winner}
+                isGameOver={isGameOver}
               />
-              <div className="mt-6">
-                <p className="text-white/60 text-sm mb-4">
-                  Total words: {words.length}
-                </p>
-                <button
-                  onClick={handlePlayAgain}
-                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 px-8 rounded-full transition-all transform hover:scale-105 active:scale-95 shadow-lg touch-manipulation"
-                >
-                  🔄 Play Again
-                </button>
+              <div className="text-white text-lg mb-4">
+                <span className="font-bold">
+                  {winner === 1 ? 'Player 1' : 'Player 2'}
+                </span>{' '}
+                wins! 🏆
               </div>
+              <button
+                onClick={handlePlayAgain}
+                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 
+                           text-white font-bold rounded-xl shadow-lg hover:from-green-600 
+                           hover:to-emerald-700 transition-all transform hover:scale-105"
+              >
+                Play Again
+              </button>
             </div>
           ) : (
-            // Active Game Screen
-            <div key={fadeKey} className="animate-fadeIn">
+            // Active Game
+            <>
               {/* Score Board */}
-              <ScoreBoard 
+              <ScoreBoard
+                key={fadeKey}
                 scores={scores}
                 currentPlayer={currentPlayer}
-                isGameOver={isGameOver}
-                winner={winner}
+                playerNames={{}}
               />
 
               {/* Turn Indicator */}
-              <div className="text-center my-4 py-3 bg-white/5 rounded-xl">
-                <p className="text-white/60 text-xs uppercase tracking-wider mb-1">
-                  Current Turn
-                </p>
-                <p className={`
-                  text-2xl font-bold transition-all duration-300
-                  ${currentPlayer === 1 ? 'text-blue-300' : 'text-purple-300'}
-                `}>
-                  Player {currentPlayer}
-                </p>
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 
+                                bg-white/20 rounded-full text-white">
+                  <span className="text-2xl">
+                    {currentPlayer === 1 ? '👤' : '👥'}
+                  </span>
+                  <span className="font-semibold">
+                    Player {currentPlayer}'s Turn
+                  </span>
+                </div>
               </div>
 
-              {/* Last Word Hint */}
+              {/* Last Word & Required Letter */}
               {lastWord && (
-                <div className="text-center mb-4 animate-slideDown">
-                  <p className="text-white/50 text-xs">Last Word</p>
-                  <p className="text-xl font-bold text-white drop-shadow">
-                    {lastWord.toUpperCase()}
-                  </p>
-                  <p className="text-white/60 text-sm mt-1">
-                    Next: <span className="text-yellow-300 font-bold text-lg">{nextLetter?.toUpperCase()}</span>
-                  </p>
+                <div className="text-center mb-4">
+                  <div className="text-white/70 text-sm mb-1">Last word:</div>
+                  <div className="text-white text-xl font-bold mb-2">
+                    {lastWord}
+                  </div>
+                  <div className="text-amber-300 text-lg font-semibold animate-pulse">
+                    Next word must start with: {nextLetter.toUpperCase()}
+                  </div>
+                </div>
+              )}
+
+              {/* Word History */}
+              <div className="mb-4 max-h-40 overflow-y-auto">
+                <WordHistory words={words} />
+              </div>
+
+              {/* Error Message with Suggestion */}
+              {error && (
+                <div className="mb-4 text-center">
+                  <div className="text-red-300 text-sm animate-shake">
+                    {error}
+                  </div>
+                  {suggestion && (
+                    <button
+                      onClick={handleSuggestionClick}
+                      className="mt-2 px-4 py-2 bg-amber-500/30 hover:bg-amber-500/50
+                                 text-amber-200 rounded-lg text-sm transition-colors
+                                 border border-amber-400/50"
+                    >
+                      Try: {suggestion} ✓
+                    </button>
+                  )}
                 </div>
               )}
 
               {/* Word Input */}
-              <div className="mt-4">
-                <WordInput
-                  onSubmit={handleSubmit}
-                  isSubmitting={isSubmitting}
-                  isValid={isValid}
-                  isInvalid={isInvalid}
-                  placeholder={lastWord ? `Brand starting with "${nextLetter?.toUpperCase()}"` : "Type a brand name..."}
-                  nextLetter={nextLetter}
-                  lastWord={lastWord}
-                />
+              <WordInput
+                value={inputWord}
+                onChange={setInputWord}
+                onSubmit={handleSubmit}
+                isValid={isValid}
+                isInvalid={isInvalid}
+                disabled={isSubmitting}
+              />
+
+              {/* Skip Button */}
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => submitWord('')}
+                  className="text-white/50 hover:text-white/80 text-sm underline"
+                >
+                  Skip turn (give up)
+                </button>
               </div>
-
-              {/* Error Message */}
-              {error && (
-                <p className="text-red-300 text-sm text-center mt-2 animate-shake">
-                  ⚠️ {error}
-                </p>
-              )}
-
-              {/* Word History */}
-              <div className="mt-6">
-                <WordHistory words={words} />
-              </div>
-
-              {/* Give Up Button */}
-              <button
-                onClick={() => startGame()}
-                className="w-full mt-4 py-2 px-4 text-white/50 hover:text-white/80 hover:bg-white/5 rounded-lg transition-colors text-sm touch-manipulation"
-              >
-                Give Up 😢
-              </button>
-            </div>
+            </>
           )}
         </div>
 
-        {/* Rules Toggle */}
-        <div className="text-center mt-4">
+        {/* Rules */}
+        <div className="mt-4 text-center">
           <button
             onClick={() => setShowRules(!showRules)}
-            className="text-white/50 hover:text-white transition-colors text-sm underline underline-offset-2 touch-manipulation"
+            className="text-white/60 hover:text-white text-sm underline"
           >
-            {showRules ? 'Hide Rules' : 'Show Rules (press ?)'}
+            {showRules ? 'Hide Rules' : 'How to Play?'}
           </button>
-          
-          {showRules && (
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-3 text-white/80 text-sm animate-slideDown">
-              <h3 className="font-bold mb-2">📜 Rules</h3>
-              <ul className="text-left space-y-1">
-                <li>• Enter brand or advertised product names</li>
-                <li>• Each word must start with the last letter of the previous word</li>
-                <li>• First word can start with any letter</li>
-                <li>• Points = word length (longer = better)</li>
-                <li>• Can't think of one? Give up and lose!</li>
-              </ul>
-            </div>
-          )}
         </div>
 
+        {showRules && (
+          <div className="mt-4 bg-white/10 backdrop-blur-md rounded-xl p-4 text-white/90">
+            <h3 className="font-bold mb-2">📜 Rules:</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              <li>Two players take turns naming brands</li>
+              <li>Each word must start with the last letter of the previous word</li>
+              <li>Only advertised brands allowed (Nike, Amul, Tata, etc.)</li>
+              <li>First player to fail loses!</li>
+            </ul>
+            <div className="mt-3 text-xs text-white/60">
+              💡 Tip: If you misspell, we'll suggest the correct brand!
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
-        <footer className="text-center mt-6 text-white/30 text-xs">
-          <p>2-Player Local Game</p>
+        <footer className="mt-6 text-center text-white/40 text-xs">
+          Made with ❤️ | ~300 Indian + Global brands
         </footer>
       </div>
-
-      {/* Animations */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-          20%, 40%, 60%, 80% { transform: translateX(4px); }
-        }
-        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
-        .animate-slideDown { animation: slideDown 0.3s ease-out; }
-        .animate-shake { animation: shake 0.5s ease-in-out; }
-      `}</style>
     </div>
   )
 }
